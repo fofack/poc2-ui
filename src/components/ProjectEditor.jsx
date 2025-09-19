@@ -18,88 +18,88 @@ const ProjectEditor = ({ project, fileName, user }) => {
   const [isDark, setIsDark] = useState(false);
   const [isInitializingRoom, setIsInitializingRoom] = useState(false);
 
-  const docsRef = useRef({});
-
   useEffect(() => {
-  if (!editorRef.current) return;
+    if (!editorRef.current) return;
 
-  setIsInitializingRoom(true);
+    setIsInitializingRoom(true);
 
-  const key = `${project.id}-${fileName}`;
+    // Clean up previous editor
+    if (viewRef.current) {
+      viewRef.current.destroy();
+    }
+    if (providerRef.current) {
+      providerRef.current.destroy();
+    }
 
-  // Réutiliser le document si déjà créé
-  let doc = docsRef.current[key];
-  if (!doc) {
-    doc = new Y.Doc();
-    docsRef.current[key] = doc;
+    // Create Yjs document
+    const doc = new Y.Doc();
+    docRef.current = doc;
+
+    const roomName = `${project.id}-${fileName}`;
+
+    // Create WebSocket provider
+    const provider = new WebsocketProvider('wss://poc2-server.up.railway.app', roomName, doc);
+    providerRef.current = provider;
+
+    // Get shared text type
+    const yText = doc.getText('codemirror');
+    // Create editor state without forcing yText.toString()
+    if (yText.length === 0) {
+    const fileContent = project.files.find(f => f.name === fileName)?.content || '';
+    yText.insert(0, fileContent);
   }
+    const state = EditorState.create({
+      extensions: [
+        basicSetup,
+        latex(),
+        ...(isDark ? [oneDark] : []),
+        yCollab(yText, provider.awareness, {
+          user: { name: user.name, color: getRandomColor() }
+        }),
+      ],
+    });
 
-  // Cleanup ancien editor/provider
-  if (viewRef.current) viewRef.current.destroy();
-  if (providerRef.current) providerRef.current.destroy();
+    // Create editor view
+    const view = new EditorView({
+      state,
+      parent: editorRef.current,
+    });
+    viewRef.current = view;
 
-  const provider = new WebsocketProvider('wss://poc2-server.up.railway.app', key, doc);
-  providerRef.current = provider;
-  const yText = doc.getText('codemirror');
+    // Connection status
+    provider.on('status', (event) => {
+      setIsConnected(event.status === 'connected');
+      if (event.status === 'connected') setIsInitializingRoom(false);
+      console.log(`Connection status: ${event.status}`);
+    });
 
-  // Initialiser le contenu seulement si vide
-  if (yText.length === 0 && fileName === 'main.tex') {
-    yText.insert(0, `\\documentclass{article}
-\\usepackage[utf8]{inputenc}
-\\usepackage{amsmath}
-\\usepackage{graphicx}
+    // Awareness (collaborators)
+    provider.awareness.on('update', () => {
+      const states = Array.from(provider.awareness.getStates().values());
+      const activeUsers = states
+        .filter(state => state.user && state.user.name !== user.name)
+        .map(state => state.user);
+      setCollaborators(activeUsers);
+      console.log('Collaborators update:', activeUsers);
+    });
 
-\\title{${project.name}}
-\\author{${user.name}}
-\\date{\\today}
+    // Document updates
+    doc.on('update', () => {
+      console.log('Document updated by:', user.name);
+    });
 
-\\begin{document}
+    // Set awareness state
+    provider.awareness.setLocalStateField('user', {
+      name: user.name,
+      color: getRandomColor(),
+      email: user.email
+    });
 
-\\maketitle
-
-\\section{Introduction}
-Welcome to collaborative LaTeX editing! Start typing your content here.
-
-\\section{Methods}
-Describe your methods here.
-
-\\section{Results}
-Present your results here.
-
-\\section{Conclusion}
-Summarize your findings here.
-
-\\end{document}`);
-  }
-
-  const state = EditorState.create({
-    extensions: [
-      basicSetup,
-      latex(),
-      ...(isDark ? [oneDark] : []),
-      yCollab(yText, provider.awareness, { user: { name: user.name, color: getRandomColor() } }),
-    ],
-  });
-
-  const view = new EditorView({
-    state,
-    parent: editorRef.current,
-  });
-  viewRef.current = view;
-
-  provider.on('status', (event) => setIsConnected(event.status === 'connected'));
-  provider.awareness.setLocalStateField('user', { name: user.name, color: getRandomColor(), email: user.email });
-  provider.awareness.on('update', () => {
-    const states = Array.from(provider.awareness.getStates().values());
-    const activeUsers = states.filter(s => s.user && s.user.name !== user.name).map(s => s.user);
-    setCollaborators(activeUsers);
-  });
-
-  return () => {
-    if (viewRef.current) viewRef.current.destroy();
-    if (providerRef.current) providerRef.current.destroy();
-  };
-}, [project.id, fileName, user, isDark]);
+    return () => {
+      if (view) view.destroy();
+      if (provider) provider.destroy();
+    };
+  }, [project.id, fileName, user, isDark]);
 
   const getRandomColor = () => {
     const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF'];
