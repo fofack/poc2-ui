@@ -2,10 +2,15 @@ import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useParams } from 'react-router-dom';
 import UserForm from './components/UserForm';
 import Dashboard from './components/Dashboard';
+import { defaultProjects } from '../data/projects';
 
 function DashboardWrapper({ user }) {
-  const { projectId } = useParams(); 
-  return <Dashboard user={user} initialProjectId={projectId} />;
+  const { projectId } = useParams();
+
+  // Chercher le projet correspondant
+  const project = defaultProjects.find((p) => p.id === projectId);
+
+  return <Dashboard user={user} project={project} />;
 }
 
 function App() {
@@ -18,7 +23,7 @@ function App() {
       setUser({
         ...userData,
         id: Date.now().toString(),
-        joinedAt: new Date().toISOString()
+        joinedAt: new Date().toISOString(),
       });
       setIsLoading(false);
     }, 1000);
@@ -26,11 +31,8 @@ function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-lg text-gray-700">Setting up your workspace...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Chargement en cours...</p>
       </div>
     );
   }
@@ -42,11 +44,17 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Accès au dashboard normal */}
-        <Route path="/" element={<Dashboard user={user} />} />
+        {/* Dashboard normal → on prend le premier projet par défaut */}
+        <Route
+          path="/"
+          element={<Dashboard user={user} project={defaultProjects[0]} />}
+        />
 
-        {/* Accès via lien projet */}
-        <Route path="/project/:projectId" element={<DashboardWrapper user={user} />} />
+        {/* Dashboard invité → projet via lien */}
+        <Route
+          path="/project/:projectId"
+          element={<DashboardWrapper user={user} />}
+        />
       </Routes>
     </Router>
   );

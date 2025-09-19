@@ -1,26 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, FileText, Users, Share, Folder, Settings, Menu, X } from 'lucide-react';
+import { Plus, FileText, Users, Share, Folder, Menu, X } from 'lucide-react';
 import ProjectEditor from './ProjectEditor';
 import CollaboratorsList from './CollaboratorsList';
+import { defaultProjects } from '../../data/projects';
 
-const Dashboard = ({ user, initialProjectId }) => {
-  const [projects, setProjects] = useState([
-    {
-      id: '1',
-      name: 'first project',
-      files: ['main.tex', 'references.bib', 'figures.tex'],
-      collaborators: [user],
-      owner: user.email,
-      createdAt: new Date().toISOString(),
-    }
-  ]);
-
-  const [selectedProject, setSelectedProject] = useState(() => {
-    return projects.find(p => p.id === initialProjectId) || projects[0];
-  });
-  const [selectedFile, setSelectedFile] = useState('main.tex');
+const Dashboard = ({ user, project }) => {
+  const [projects, setProjects] = useState(defaultProjects); // ✅ Projets initiaux
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showShareModal, setShowShareModal] = useState(false);
+
+  // ✅ Si on arrive via un lien d’invitation (props.project existe), on sélectionne ce projet
+  useEffect(() => {
+    if (project) {
+      setSelectedProject(project);
+      if (project.files && project.files.length > 0) {
+        setSelectedFile(project.files[0].name || project.files[0]); // gère string ou objet
+      }
+    }
+  }, [project]);
 
   const createNewProject = () => {
     const projectName = prompt('Enter project name:');
@@ -29,7 +28,7 @@ const Dashboard = ({ user, initialProjectId }) => {
     const newProject = {
       id: Date.now().toString(),
       name: projectName,
-      files: ['main.tex'],
+      files: [{ name: 'main.tex', content: '' }],
       collaborators: [user],
       owner: user.email,
       createdAt: new Date().toISOString(),
@@ -44,18 +43,15 @@ const Dashboard = ({ user, initialProjectId }) => {
     const fileName = prompt('Enter file name (with extension):');
     if (!fileName) return;
 
-    setProjects(projects.map(project =>
-      project.id === projectId
-        ? { ...project, files: [...project.files, fileName] }
-        : project
+    setProjects(projects.map(p =>
+      p.id === projectId
+        ? { ...p, files: [...p.files, { name: fileName, content: '' }] }
+        : p
     ));
   };
 
   const ShareModal = ({ showShareModal, setShowShareModal, projectId }) => {
-    // Génère un lien partageable
     const shareLink = `${window.location.origin}/project/${projectId}`;
-
-    // Copier le lien dans le presse-papier
     const copyToClipboard = () => {
       navigator.clipboard.writeText(shareLink);
       alert('Link copied to clipboard!');
@@ -79,25 +75,23 @@ const Dashboard = ({ user, initialProjectId }) => {
               <p className="text-sm text-gray-600">
                 Share this link to allow users to access the project:
               </p>
-
               <div className="flex space-x-2">
                 <input
                   type="text"
                   readOnly
                   value={shareLink}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
                 />
                 <button
                   onClick={copyToClipboard}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg"
                 >
                   Copy
                 </button>
               </div>
-
               <button
                 onClick={() => setShowShareModal(false)}
-                className="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold py-2 px-4 rounded-lg transition-colors"
+                className="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold py-2 px-4 rounded-lg"
               >
                 Close
               </button>
@@ -108,7 +102,6 @@ const Dashboard = ({ user, initialProjectId }) => {
     );
   };
 
-
   return (
     <div className="h-screen bg-gray-50 flex">
       {/* Sidebar */}
@@ -118,7 +111,7 @@ const Dashboard = ({ user, initialProjectId }) => {
             <h2 className="text-lg font-semibold text-gray-900">Projects</h2>
             <button
               onClick={createNewProject}
-              className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
               title="New Project"
             >
               <Plus className="w-4 h-4" />
@@ -126,37 +119,43 @@ const Dashboard = ({ user, initialProjectId }) => {
           </div>
 
           <div className="space-y-2">
-            {projects.map(project => (
-              <div
-                key={project.id}
-                onClick={() => setSelectedProject(project)}
-                className={`p-3 rounded-lg cursor-pointer transition-colors ${selectedProject?.id === project.id
-                  ? 'bg-blue-50 border border-blue-200'
-                  : 'hover:bg-gray-50'
-                  }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Folder className="w-4 h-4 text-blue-600" />
-                    <span className="font-medium text-gray-900">{project.name}</span>
+            {projects.length === 0 ? (
+              <p className="text-sm text-gray-500">No projects yet. Create one!</p>
+            ) : (
+              projects.map(p => (
+                <div
+                  key={p.id}
+                  onClick={() => setSelectedProject(p)}
+                  className={`p-3 rounded-lg cursor-pointer transition-colors ${selectedProject?.id === p.id
+                    ? 'bg-blue-50 border border-blue-200'
+                    : 'hover:bg-gray-50'
+                    }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Folder className="w-4 h-4 text-blue-600" />
+                      <span className="font-medium text-gray-900">{p.name}</span>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowShareModal(true);
+                      }}
+                      className="p-1 hover:bg-gray-200 rounded"
+                      title="Share Project"
+                    >
+                      <Share className="w-3 h-3 text-gray-500" />
+                    </button>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowShareModal(true);
-                    }}
-                    className="p-1 hover:bg-gray-200 rounded"
-                    title="Share Project"
-                  >
-                    <Share className="w-3 h-3 text-gray-500" />
-                  </button>
+                  {p.collaborators && (
+                    <div className="flex items-center space-x-2 mt-1 text-xs text-gray-500">
+                      <Users className="w-3 h-3" />
+                      <span>{p.collaborators.length} collaborator(s)</span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center space-x-2 mt-1 text-xs text-gray-500">
-                  <Users className="w-3 h-3" />
-                  <span>{project.collaborators.length} collaborator(s)</span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -173,27 +172,29 @@ const Dashboard = ({ user, initialProjectId }) => {
               </button>
             </div>
             <div className="space-y-1">
-              {selectedProject.files.map(file => (
-                <div
-                  key={file}
-                  onClick={() => setSelectedFile(file)}
-                  className={`flex items-center space-x-2 p-2 rounded-lg cursor-pointer transition-colors ${selectedFile === file
-                    ? 'bg-green-50 border border-green-200'
-                    : 'hover:bg-gray-50'
-                    }`}
-                >
-                  <FileText className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm text-gray-700">{file}</span>
-                </div>
-              ))}
+              {selectedProject.files.map(file => {
+                const fileName = file.name || file;
+                return (
+                  <div
+                    key={fileName}
+                    onClick={() => setSelectedFile(fileName)}
+                    className={`flex items-center space-x-2 p-2 rounded-lg cursor-pointer transition-colors ${selectedFile === fileName
+                      ? 'bg-green-50 border border-green-200'
+                      : 'hover:bg-gray-50'
+                      }`}
+                  >
+                    <FileText className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm text-gray-700">{fileName}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* Collaborators */}
         {selectedProject && (
           <CollaboratorsList
-            collaborators={selectedProject.collaborators}
+            collaborators={selectedProject.collaborators || []}
             currentUser={user}
           />
         )}
@@ -201,19 +202,18 @@ const Dashboard = ({ user, initialProjectId }) => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 rounded-lg"
               >
                 <Menu className="w-5 h-5" />
               </button>
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">
-                  {selectedProject?.name || 'Select a Project'}
+                  {selectedProject?.name || 'No Project Selected'}
                 </h1>
                 {selectedFile && (
                   <p className="text-sm text-gray-500">Editing: {selectedFile}</p>
@@ -232,7 +232,6 @@ const Dashboard = ({ user, initialProjectId }) => {
           </div>
         </header>
 
-        {/* Editor */}
         <div className="flex-1">
           {selectedProject && selectedFile ? (
             <ProjectEditor
@@ -244,8 +243,8 @@ const Dashboard = ({ user, initialProjectId }) => {
             <div className="h-full flex items-center justify-center text-gray-500">
               <div className="text-center">
                 <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg mb-2">No file selected</p>
-                <p className="text-sm">Choose a project and file to start editing</p>
+                <p className="text-lg mb-2">No project selected</p>
+                <p className="text-sm">Create a project to start editing</p>
               </div>
             </div>
           )}
@@ -259,7 +258,6 @@ const Dashboard = ({ user, initialProjectId }) => {
           projectId={selectedProject.id}
         />
       )}
-
     </div>
   );
 };

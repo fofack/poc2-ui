@@ -41,44 +41,45 @@ const ProjectEditor = ({ project, fileName, user }) => {
     // Get shared text type
     const yText = doc.getText('codemirror');
 
-    // Set initial content if empty
+    // Set initial content only if empty
     if (yText.length === 0 && fileName === 'main.tex') {
       yText.insert(0, `\\documentclass{article}
-                        \\usepackage[utf8]{inputenc}
-                        \\usepackage{amsmath}
-                        \\usepackage{graphicx}
+\\usepackage[utf8]{inputenc}
+\\usepackage{amsmath}
+\\usepackage{graphicx}
 
-                        \\title{${project.name}}
-                        \\author{${user.name}}
-                        \\date{\\today}
+\\title{${project.name}}
+\\author{${user.name}}
+\\date{\\today}
 
-                        \\begin{document}
+\\begin{document}
 
-                        \\maketitle
+\\maketitle
 
-                        \\section{Introduction}
-                        Welcome to collaborative LaTeX editing! Start typing your content here.
+\\section{Introduction}
+Welcome to collaborative LaTeX editing! Start typing your content here.
 
-                        \\section{Methods}
-                        Describe your methods here.
+\\section{Methods}
+Describe your methods here.
 
-                        \\section{Results}
-                        Present your results here.
+\\section{Results}
+Present your results here.
 
-                        \\section{Conclusion}
-                        Summarize your findings here.
+\\section{Conclusion}
+Summarize your findings here.
 
-                        \\end{document}`);
+\\end{document}`);
     }
 
-    // Create editor state
+    // Create editor state without forcing yText.toString()
     const state = EditorState.create({
-      doc: yText.toString(),
       extensions: [
         basicSetup,
         latex(),
         ...(isDark ? [oneDark] : []),
-        yCollab(yText, provider.awareness, { user: { name: user.name, color: getRandomColor() } }),
+        yCollab(yText, provider.awareness, { 
+          user: { name: user.name, color: getRandomColor() } 
+        }),
       ],
     });
 
@@ -106,7 +107,7 @@ const ProjectEditor = ({ project, fileName, user }) => {
     });
 
     // Document updates
-    doc.on('update', (update) => {
+    doc.on('update', () => {
       console.log('Document updated by:', user.name);
     });
 
@@ -129,7 +130,6 @@ const ProjectEditor = ({ project, fileName, user }) => {
   };
 
   const handleSave = () => {
-    // In a real app, this would save to backend
     console.log('Saving document...', fileName);
     alert('Document saved successfully!');
   };
