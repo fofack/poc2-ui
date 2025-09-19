@@ -35,7 +35,7 @@ const ProjectEditor = ({ project, fileName, user }) => {
     const roomName = `${project.id}-${fileName}`;
 
     // Create WebSocket provider
-    const provider = new WebsocketProvider('ws://localhost:1234', roomName, doc);
+    const provider = new WebsocketProvider('wss://poc2-server-production.up.railway.app/', roomName, doc);
     providerRef.current = provider;
 
     // Get shared text type
