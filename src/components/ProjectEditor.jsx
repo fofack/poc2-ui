@@ -23,7 +23,7 @@ const ProjectEditor = ({ project, fileName, user }) => {
 
     setIsInitializingRoom(true);
 
-    // Clean up previous editor
+    // --- Clean up previous editor and provider ---
     if (viewRef.current) {
       viewRef.current.destroy();
     }
@@ -31,22 +31,23 @@ const ProjectEditor = ({ project, fileName, user }) => {
       providerRef.current.destroy();
     }
 
-    // Create Yjs document
+    // --- Create a new Yjs document ---
     const doc = new Y.Doc();
     docRef.current = doc;
 
     const roomName = `${project.id}-${fileName}`;
 
-    // Create WebSocket provider
+    // --- Create WebSocket provider ---
     const provider = new WebsocketProvider('wss://poc2-server.up.railway.app', roomName, doc);
     providerRef.current = provider;
 
-    // Get shared text type
     const yText = doc.getText('codemirror');
 
-    // Set initial content only if empty
-    if (yText.length === 0 && fileName === 'main.tex') {
-      yText.insert(0, `\\documentclass{article}
+    // --- Insert initial LaTeX template ONLY if doc is empty ---
+    if (!doc.isInitialized) {
+      doc.isInitialized = true;
+      if (yText.toString().trim().length === 0 && fileName === 'main.tex') {
+        yText.insert(0, `\\documentclass{article}
 \\usepackage[utf8]{inputenc}
 \\usepackage{amsmath}
 \\usepackage{graphicx}
@@ -72,9 +73,10 @@ Present your results here.
 Summarize your findings here.
 
 \\end{document}`);
+      }
     }
 
-    // Create editor state without forcing yText.toString()
+    // --- Create editor state ---
     const state = EditorState.create({
       extensions: [
         basicSetup,
@@ -86,47 +88,42 @@ Summarize your findings here.
       ],
     });
 
-    // Create editor view
+    // --- Create editor view ---
     const view = new EditorView({
       state,
       parent: editorRef.current,
     });
     viewRef.current = view;
 
-    // Connection status
+    // --- Connection status ---
     provider.on('status', (event) => {
       setIsConnected(event.status === 'connected');
       if (event.status === 'connected') setIsInitializingRoom(false);
-      console.log(`Connection status: ${event.status}`);
     });
 
-    // Awareness (collaborators)
+    // --- Awareness (collaborators) ---
     provider.awareness.on('update', () => {
       const states = Array.from(provider.awareness.getStates().values());
       const activeUsers = states
         .filter(state => state.user && state.user.name !== user.name)
         .map(state => state.user);
       setCollaborators(activeUsers);
-      console.log('Collaborators update:', activeUsers);
     });
 
-    // Document updates
-    doc.on('update', () => {
-      console.log('Document updated by:', user.name);
-    });
-
-    // Set awareness state
+    // --- Set local awareness ---
     provider.awareness.setLocalStateField('user', {
       name: user.name,
       color: getRandomColor(),
       email: user.email
     });
 
+    // --- Cleanup on unmount or project/file change ---
     return () => {
-      if (view) view.destroy();
-      if (provider) provider.destroy();
+      if (viewRef.current) viewRef.current.destroy();
+      if (providerRef.current) providerRef.current.destroy();
     };
   }, [project.id, fileName, user, isDark]);
+
 
   const getRandomColor = () => {
     const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF'];
