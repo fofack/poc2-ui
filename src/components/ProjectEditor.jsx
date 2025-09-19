@@ -16,9 +16,12 @@ const ProjectEditor = ({ project, fileName, user }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [collaborators, setCollaborators] = useState([]);
   const [isDark, setIsDark] = useState(false);
+  const [isInitializingRoom, setIsInitializingRoom] = useState(false);
 
   useEffect(() => {
     if (!editorRef.current) return;
+
+    setIsInitializingRoom(true);
 
     // Clean up previous editor
     if (viewRef.current) {
@@ -77,8 +80,8 @@ Summarize your findings here.
         basicSetup,
         latex(),
         ...(isDark ? [oneDark] : []),
-        yCollab(yText, provider.awareness, { 
-          user: { name: user.name, color: getRandomColor() } 
+        yCollab(yText, provider.awareness, {
+          user: { name: user.name, color: getRandomColor() }
         }),
       ],
     });
@@ -93,6 +96,7 @@ Summarize your findings here.
     // Connection status
     provider.on('status', (event) => {
       setIsConnected(event.status === 'connected');
+      if (event.status === 'connected') setIsInitializingRoom(false);
       console.log(`Connection status: ${event.status}`);
     });
 
@@ -148,7 +152,12 @@ Summarize your findings here.
           </button>
 
           <div className="flex items-center space-x-2">
-            {isConnected ? (
+            {isInitializingRoom ? (
+              <>
+                <Wifi className="w-4 h-4 text-gray-400 animate-pulse" />
+                <span className="text-sm text-gray-500">Connecting...</span>
+              </>
+            ) : isConnected ? (
               <>
                 <Wifi className="w-4 h-4 text-green-600" />
                 <span className="text-sm text-green-600">Connected</span>
@@ -160,6 +169,7 @@ Summarize your findings here.
               </>
             )}
           </div>
+
         </div>
 
         <div className="flex items-center space-x-4">
