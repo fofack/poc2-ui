@@ -18,36 +18,33 @@ const ProjectEditor = ({ project, fileName, user }) => {
   const [isDark, setIsDark] = useState(false);
   const [isInitializingRoom, setIsInitializingRoom] = useState(false);
 
+  const docsRef = useRef({});
+
   useEffect(() => {
-    if (!editorRef.current) return;
+  if (!editorRef.current) return;
 
-    setIsInitializingRoom(true);
+  setIsInitializingRoom(true);
 
-    // --- Clean up previous editor and provider ---
-    if (viewRef.current) {
-      viewRef.current.destroy();
-    }
-    if (providerRef.current) {
-      providerRef.current.destroy();
-    }
+  const key = `${project.id}-${fileName}`;
 
-    // --- Create a new Yjs document ---
-    const doc = new Y.Doc();
-    docRef.current = doc;
+  // Réutiliser le document si déjà créé
+  let doc = docsRef.current[key];
+  if (!doc) {
+    doc = new Y.Doc();
+    docsRef.current[key] = doc;
+  }
 
-    const roomName = `${project.id}-${fileName}`;
+  // Cleanup ancien editor/provider
+  if (viewRef.current) viewRef.current.destroy();
+  if (providerRef.current) providerRef.current.destroy();
 
-    // --- Create WebSocket provider ---
-    const provider = new WebsocketProvider('wss://poc2-server.up.railway.app', roomName, doc);
-    providerRef.current = provider;
+  const provider = new WebsocketProvider('wss://poc2-server.up.railway.app', key, doc);
+  providerRef.current = provider;
+  const yText = doc.getText('codemirror');
 
-    const yText = doc.getText('codemirror');
-
-    // --- Insert initial LaTeX template ONLY if doc is empty ---
-    if (!doc.isInitialized) {
-      doc.isInitialized = true;
-      if (yText.toString().trim().length === 0 && fileName === 'main.tex') {
-        yText.insert(0, `\\documentclass{article}
+  // Initialiser le contenu seulement si vide
+  if (yText.length === 0 && fileName === 'main.tex') {
+    yText.insert(0, `\\documentclass{article}
 \\usepackage[utf8]{inputenc}
 \\usepackage{amsmath}
 \\usepackage{graphicx}
@@ -73,57 +70,36 @@ Present your results here.
 Summarize your findings here.
 
 \\end{document}`);
-      }
-    }
+  }
 
-    // --- Create editor state ---
-    const state = EditorState.create({
-      extensions: [
-        basicSetup,
-        latex(),
-        ...(isDark ? [oneDark] : []),
-        yCollab(yText, provider.awareness, {
-          user: { name: user.name, color: getRandomColor() }
-        }),
-      ],
-    });
+  const state = EditorState.create({
+    extensions: [
+      basicSetup,
+      latex(),
+      ...(isDark ? [oneDark] : []),
+      yCollab(yText, provider.awareness, { user: { name: user.name, color: getRandomColor() } }),
+    ],
+  });
 
-    // --- Create editor view ---
-    const view = new EditorView({
-      state,
-      parent: editorRef.current,
-    });
-    viewRef.current = view;
+  const view = new EditorView({
+    state,
+    parent: editorRef.current,
+  });
+  viewRef.current = view;
 
-    // --- Connection status ---
-    provider.on('status', (event) => {
-      setIsConnected(event.status === 'connected');
-      if (event.status === 'connected') setIsInitializingRoom(false);
-    });
+  provider.on('status', (event) => setIsConnected(event.status === 'connected'));
+  provider.awareness.setLocalStateField('user', { name: user.name, color: getRandomColor(), email: user.email });
+  provider.awareness.on('update', () => {
+    const states = Array.from(provider.awareness.getStates().values());
+    const activeUsers = states.filter(s => s.user && s.user.name !== user.name).map(s => s.user);
+    setCollaborators(activeUsers);
+  });
 
-    // --- Awareness (collaborators) ---
-    provider.awareness.on('update', () => {
-      const states = Array.from(provider.awareness.getStates().values());
-      const activeUsers = states
-        .filter(state => state.user && state.user.name !== user.name)
-        .map(state => state.user);
-      setCollaborators(activeUsers);
-    });
-
-    // --- Set local awareness ---
-    provider.awareness.setLocalStateField('user', {
-      name: user.name,
-      color: getRandomColor(),
-      email: user.email
-    });
-
-    // --- Cleanup on unmount or project/file change ---
-    return () => {
-      if (viewRef.current) viewRef.current.destroy();
-      if (providerRef.current) providerRef.current.destroy();
-    };
-  }, [project.id, fileName, user, isDark]);
-
+  return () => {
+    if (viewRef.current) viewRef.current.destroy();
+    if (providerRef.current) providerRef.current.destroy();
+  };
+}, [project.id, fileName, user, isDark]);
 
   const getRandomColor = () => {
     const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF'];
