@@ -13,13 +13,16 @@ const ProjectEditor = ({ project, fileName, user }) => {
   const viewRef = useRef(null);
   const docRef = useRef(null);
   const providerRef = useRef(null);
+  const [selectedFile, setSelectedFile] = useState(() => {
+    return project.files.find(f => f.name === 'main.tex')?.name || project.files[0]?.name;
+  });
   const [isConnected, setIsConnected] = useState(false);
   const [collaborators, setCollaborators] = useState([]);
   const [isDark, setIsDark] = useState(false);
   const [isInitializingRoom, setIsInitializingRoom] = useState(false);
 
   useEffect(() => {
-    if (!editorRef.current) return;
+    if (!editorRef.current || !selectedFile) return;
 
     setIsInitializingRoom(true);
 
@@ -44,17 +47,17 @@ const ProjectEditor = ({ project, fileName, user }) => {
     // Get shared text type
     const yText = doc.getText('codemirror');
     // Create editor state without forcing yText.toString()
+    const fileContent = project.files.find(f => f.name === selectedFile)?.content || '';
     if (yText.length === 0) {
-    const fileContent = project.files.find(f => f.name === fileName)?.content || '';
-    yText.insert(0, fileContent);
-  }
+      yText.insert(0, fileContent);
+    }
     const state = EditorState.create({
       extensions: [
         basicSetup,
         latex(),
         ...(isDark ? [oneDark] : []),
         yCollab(yText, provider.awareness, {
-          user: { name: user.name, color: getRandomColor() }
+          user: { name: user.name, email: user.email, color: getRandomColor() }
         }),
       ],
     });
@@ -85,7 +88,10 @@ const ProjectEditor = ({ project, fileName, user }) => {
 
     // Document updates
     doc.on('update', () => {
-      console.log('Document updated by:', user.name);
+      const fileIndex = project.files.findIndex(f => f.name === selectedFile);
+      if (fileIndex > -1) {
+        project.files[fileIndex].content = yText.toString();
+      }
     });
 
     // Set awareness state
