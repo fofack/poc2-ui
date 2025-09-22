@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { EditorView, basicSetup } from 'codemirror';
 import { EditorState } from '@codemirror/state';
 import { latex } from 'codemirror-lang-latex';
@@ -8,7 +8,7 @@ import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { Save, Users, Wifi, WifiOff } from 'lucide-react';
 
-const ProjectEditor = ({ project, fileName, user }) => {
+const ProjectEditor = ({ project, fileName, user, onCollaboratorsChange  }) => {
   const editorRef = useRef(null);
   const viewRef = useRef(null);
   const docRef = useRef(null);
@@ -36,6 +36,7 @@ const ProjectEditor = ({ project, fileName, user }) => {
 
     // Create WebSocket provider
     const provider = new WebsocketProvider('wss://poc2-server-production.up.railway.app/', roomName, doc);
+    //const provider = new WebsocketProvider('ws://localhost:8080', roomName, doc);
     providerRef.current = provider;
 
     // Get shared text type
@@ -44,31 +45,31 @@ const ProjectEditor = ({ project, fileName, user }) => {
     // Set initial content if empty
     if (yText.length === 0 && fileName === 'main.tex') {
       yText.insert(0, `\\documentclass{article}
-                        \\usepackage[utf8]{inputenc}
-                        \\usepackage{amsmath}
-                        \\usepackage{graphicx}
+\\usepackage[utf8]{inputenc}
+\\usepackage{amsmath}
+\\usepackage{graphicx}
 
-                        \\title{${project.name}}
-                        \\author{${user.name}}
-                        \\date{\\today}
+\\title{${project.name}}
+\\author{${user.name}}
+\\date{\\today}
 
-                        \\begin{document}
+\\begin{document}
 
-                        \\maketitle
+\\maketitle
 
-                        \\section{Introduction}
-                        Welcome to collaborative LaTeX editing! Start typing your content here.
+\\section{Introduction}
+Welcome to collaborative LaTeX editing! Start typing your content here.
 
-                        \\section{Methods}
-                        Describe your methods here.
+\\section{Methods}
+Describe your methods here.
 
-                        \\section{Results}
-                        Present your results here.
+\\section{Results}
+Present your results here.
 
-                        \\section{Conclusion}
-                        Summarize your findings here.
+\\section{Conclusion}
+Summarize your findings here.
 
-                        \\end{document}`);
+\\end{document}`);
     }
 
     // Create editor state
@@ -99,9 +100,11 @@ const ProjectEditor = ({ project, fileName, user }) => {
     provider.awareness.on('update', () => {
       const states = Array.from(provider.awareness.getStates().values());
       const activeUsers = states
-        .filter(state => state.user && state.user.name !== user.name)
+        .filter(state => state.user)
         .map(state => state.user);
       setCollaborators(activeUsers);
+      
+        onCollaboratorsChange(activeUsers);
       console.log('Collaborators update:', activeUsers);
     });
 

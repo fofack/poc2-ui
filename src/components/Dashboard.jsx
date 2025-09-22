@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, FileText, Users, Share, Folder, Settings, Menu, X } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, FileText, Users, Share, Folder, Menu, X } from 'lucide-react';
 import ProjectEditor from './ProjectEditor';
 import CollaboratorsList from './CollaboratorsList';
+import { v4 as uuidv4 } from "uuid";
 
-const Dashboard = ({ user, initialProjectId }) => {
+const Dashboard = ({ user, initialProjectId, owner }) => {
   const [projects, setProjects] = useState([
     {
-      id: '1',
+      id: initialProjectId ? initialProjectId : uuidv4(),
       name: 'first project',
       files: ['main.tex', 'references.bib', 'figures.tex'],
       collaborators: [user],
@@ -27,7 +28,7 @@ const Dashboard = ({ user, initialProjectId }) => {
     if (!projectName) return;
 
     const newProject = {
-      id: Date.now().toString(),
+      id: uuidv4(),
       name: projectName,
       files: ['main.tex'],
       collaborators: [user],
@@ -51,9 +52,9 @@ const Dashboard = ({ user, initialProjectId }) => {
     ));
   };
 
-  const ShareModal = ({ showShareModal, setShowShareModal, projectId }) => {
+  const ShareModal = ({ showShareModal, setShowShareModal, ownerEmail, projectId }) => {
     // Génère un lien partageable
-    const shareLink = `${window.location.origin}/project/${projectId}`;
+    const shareLink = `${window.location.origin}/project/${ownerEmail}/${projectId}`;
 
     // Copier le lien dans le presse-papier
     const copyToClipboard = () => {
@@ -195,6 +196,7 @@ const Dashboard = ({ user, initialProjectId }) => {
           <CollaboratorsList
             collaborators={selectedProject.collaborators}
             currentUser={user}
+            owner={owner}
           />
         )}
       </div>
@@ -239,6 +241,19 @@ const Dashboard = ({ user, initialProjectId }) => {
               project={selectedProject}
               fileName={selectedFile}
               user={user}
+              onCollaboratorsChange={(collabs) =>
+                setProjects((prev) => {
+                  const updatedProjects = prev.map((p) =>
+                    p.id === selectedProject.id ? { ...p, collaborators: collabs } : p
+                  );
+                  setSelectedProject(
+                    updatedProjects.find((p) => p.id === selectedProject.id)
+                  );
+                  return updatedProjects;
+                })
+              }
+
+
             />
           ) : (
             <div className="h-full flex items-center justify-center text-gray-500">
@@ -256,6 +271,7 @@ const Dashboard = ({ user, initialProjectId }) => {
         <ShareModal
           showShareModal={showShareModal}
           setShowShareModal={setShowShareModal}
+          ownerEmail={user.email}
           projectId={selectedProject.id}
         />
       )}

@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
 import { Users, Crown, Eye, Edit, ChevronDown, ChevronRight } from 'lucide-react';
 
-const CollaboratorsList = ({ collaborators, currentUser }) => {
+const CollaboratorsList = ({ collaborators, currentUser, owner }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const getPermissionIcon = (collaborator) => {
-    if (collaborator.email === currentUser.email) {
-      return <Crown className="w-3 h-3 text-yellow-600" title="Owner" />;
+    if (owner) {
+      if (collaborator.email === owner) {
+        return <Crown className="w-3 h-3 text-yellow-600" title="Owner" />;
+      }
+    } else {
+      if (collaborator.email === currentUser.email) {
+        return <Crown className="w-3 h-3 text-yellow-600" title="Owner" />;
+      }
     }
     return collaborator.role === 'viewer' ? (
       <Eye className="w-3 h-3 text-blue-600" title="Viewer" />
@@ -50,12 +56,12 @@ const CollaboratorsList = ({ collaborators, currentUser }) => {
                       {collaborator.name?.charAt(0).toUpperCase() || '?'}
                     </span>
                   </div>
-                  <div 
+                  <div
                     className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-white rounded-full ${getStatusColor(collaborator.isOnline !== false)}`}
                     title={collaborator.isOnline !== false ? 'Online' : 'Offline'}
                   ></div>
                 </div>
-                
+
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2">
                     <p className="text-sm font-medium text-gray-900 truncate">

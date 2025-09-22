@@ -4,8 +4,8 @@ import UserForm from './components/UserForm';
 import Dashboard from './components/Dashboard';
 
 function DashboardWrapper({ user }) {
-  const { projectId } = useParams(); 
-  return <Dashboard user={user} initialProjectId={projectId} />;
+  const { ownerEmail, projectId } = useParams(); 
+  return <Dashboard user={user} owner={ownerEmail} initialProjectId={projectId} />;
 }
 
 function App() {
@@ -46,7 +46,7 @@ function App() {
         <Route path="/" element={<Dashboard user={user} />} />
 
         {/* Accès via lien projet */}
-        <Route path="/project/:projectId" element={<DashboardWrapper user={user} />} />
+        <Route path="/project/:ownerEmail/:projectId" element={<DashboardWrapper user={user} />} />
       </Routes>
     </Router>
   );
