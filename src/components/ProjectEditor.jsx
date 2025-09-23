@@ -35,7 +35,7 @@ const ProjectEditor = ({ project, fileName, user, onCollaboratorsChange  }) => {
     const roomName = `${project.id}-${fileName}`;
 
     // Create WebSocket provider
-    const provider = new WebsocketProvider('wss://poc2-server-production.up.railway.app/', roomName, doc);
+    const provider = new WebsocketProvider('wss://poc2-server.up.railway.app/', roomName, doc);
     //const provider = new WebsocketProvider('ws://localhost:8080', roomName, doc);
     providerRef.current = provider;
 
